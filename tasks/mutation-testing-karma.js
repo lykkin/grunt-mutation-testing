@@ -7,12 +7,15 @@
  */
 'use strict';
 var _ = require('lodash'),
+    log4js = require('log4js'),
     path = require('path');
 
 var CopyUtils = require('../utils/CopyUtils'),
     IOUtils = require('../utils/IOUtils'),
     KarmaServerManager = require('../lib/KarmaServerManager'),
     KarmaCodeSpecsMatcher = require('../lib/KarmaCodeSpecsMatcher');
+
+var logger = log4js.getLogger('mutation-testing-karma');
 
 exports.init = function(grunt, opts) {
     if(opts.testFramework !== 'karma') {
@@ -39,7 +42,7 @@ exports.init = function(grunt, opts) {
 
     // Extend the karma configuration with some secondary properties that cannot be overwritten
     _.merge(karmaConfig, {
-        logLevel: ['INFO', 'DEBUG'].indexOf(karmaConfig.logLevel) !== -1 ? karmaConfig.logLevel : 'INFO',
+        logLevel: ['INFO', 'DEBUG', 'TRACE'].indexOf(karmaConfig.logLevel) !== -1 ? karmaConfig.logLevel : 'INFO',
         configFile: karmaConfig.configFile ? path.resolve(karmaConfig.configFile) : undefined
     });
 
@@ -64,6 +67,8 @@ exports.init = function(grunt, opts) {
 
         if(!opts.mutateProductionCode) {
             CopyUtils.copyToTemp(opts.code.concat(opts.specs), 'mutation-testing').done(function(tempDirPath) {
+                logger.trace('Copied %j to %s', opts.code.concat(opts.specs), tempDirPath);
+
                 // Set the basePath relative to the temp dir
                 karmaConfig.basePath = tempDirPath;
                 opts.basePath = path.join(tempDirPath, opts.basePath);
@@ -104,7 +109,7 @@ exports.init = function(grunt, opts) {
         currentInstance.runTests().then(function(testSuccess) {
             done(testSuccess);
         }, function(error) {
-            grunt.log.warn('\n' + error);
+            logger.warn(error);
             startServer(karmaConfig, function(instance) {
                 currentInstance = instance;
                 done(false);
